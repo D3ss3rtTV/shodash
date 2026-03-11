@@ -31,16 +31,6 @@ A Python terminal dashboard that puts your Shodan lifetime membership to actual 
 
 ---
 
-## Screenshots
-
-> *(add your screenshots here)*
-
-| Dashboard | Filter Library | Results |
-|-----------|---------------|---------|
-| ![dashboard]() | ![filters]() | ![results]() |
-
----
-
 ## Requirements
 
 - Python 3.8+
