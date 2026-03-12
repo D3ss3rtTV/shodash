@@ -23,6 +23,7 @@ A Python terminal dashboard that puts your Shodan membership to actual use — s
 - **Geo-radius search** — target any city or address, set a radius in miles, search within it
 - **Filter Library** — 9 categories, 80+ pre-built queries covering cameras, remote access, ICS/SCADA, IoT, network gear, and more
 - **Cart system** — preview result counts for free before spending a single credit, then run only what's worth it
+- **IP Monitor** — watch up to 16 IPs for changes and new exposure
 - **Host Lookup** — deep-dive any IP at zero credit cost
 - **DNS Tools** — built-in domain recon
 - **Live account status** — query credits, scan credits, and plan info always visible
@@ -79,6 +80,7 @@ python shodash.py
 |-----|--------|
 | `B` | Browse Filter Library |
 | `L` | Set location and search radius |
+| `M` | IP Monitor — watch up to 16 IPs for changes |
 | `H` | Host Lookup — free IP deep-dive, no credits |
 | `D` | DNS Tools — domain recon |
 | `Q` | Quit |
@@ -148,7 +150,6 @@ SHODASH only queries data already indexed by Shodan from the public internet. It
 - [ ] Saved search profiles
 - [ ] Host detail drill-down from results table
 - [ ] Custom query builder with filter autocomplete
-- [ ] Monitor mode — re-run saved cart on a schedule
 - [ ] Additional OSINT source integrations
 
 ---
