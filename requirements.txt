@@ -2,3 +2,6 @@ shodan>=1.31.0
 rich>=13.7.0
 requests>=2.31.0
 
+# Optional — PDF export
+fpdf2>=2.7.0
+

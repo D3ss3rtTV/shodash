@@ -14,8 +14,17 @@ import shodan
 import requests
 import sys
 import re
+import csv
+import json
+import time
 from datetime import datetime
 from pathlib import Path
+
+try:
+    from fpdf import FPDF
+    _PDF_AVAILABLE = True
+except ImportError:
+    _PDF_AVAILABLE = False
 from shodan.cli.helpers import get_api_key
 from rich.console import Console
 from rich.table import Table
@@ -41,6 +50,12 @@ C = {
 }
 
 console = Console()
+
+
+class CIPrompt(Prompt):
+    """Case-insensitive Prompt — lowercases input before validation."""
+    def process_response(self, value: str) -> str:
+        return super().process_response(value.strip().lower())
 
 # ─────────────────────────────────────────────────────────────────────────────
 # FILTER LIBRARY  —  the single source of truth for every search query.
@@ -277,6 +292,30 @@ for _cat in FILTER_LIBRARY.values():
 
 # ── Session state  ────────────────────────────────────────────────────────────
 
+_CONFIG_PATH = Path.home() / ".shodash" / "config.json"
+
+
+def _save_config(session: "Session") -> None:
+    _CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        "lat":       session.lat,
+        "lon":       session.lon,
+        "display":   session.display,
+        "radius_mi": session.radius_mi,
+        "radius_km": session.radius_km,
+    }
+    _CONFIG_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def _load_config() -> dict | None:
+    try:
+        if _CONFIG_PATH.exists():
+            return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return None
+
+
 class Session:
     """Holds location, query cart, and cached account info across the whole run."""
     def __init__(self) -> None:
@@ -287,7 +326,8 @@ class Session:
         self.radius_mi:    float | None = None
         self.radius_km:    int   | None = None
         self.cart:         dict[str, tuple[str, str]] = {}
-        self.last_counts:  dict[str, int] = {}  # Cache for dashboard estimates
+        self.last_counts:  dict[str, int] = {}
+        self.last_results: dict[str, list[dict]] = {}
         self.account_info: dict = {}
         self.api_key:      str  = ""
 
@@ -300,7 +340,9 @@ class Session:
         self.lat, self.lon, self.display = lat, lon, display
         self.radius_mi, self.radius_km   = radius_mi, radius_km
         self.geo = f"geo:{lat},{lon},{radius_km}"
-        self.last_counts.clear()  # Invalidate cache on location change
+        self.last_counts.clear()
+        self.last_results.clear()
+        _save_config(self)
 
     def location_line(self) -> str:
         if not self.has_location:
@@ -617,6 +659,257 @@ def fetch_results(api: shodan.Shodan, geo: str,
     return all_results
 
 
+# ── NVD CVE enrichment ────────────────────────────────────────────────────────
+
+_NVD_URL   = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+_SEVERITY_COLORS = {
+    "CRITICAL": C["red"],
+    "HIGH":     C["peach"],
+    "MEDIUM":   C["yellow"],
+    "LOW":      C["green"],
+    "NONE":     C["overlay1"],
+}
+
+def fetch_cve_details(cve_id: str) -> dict:
+    """Return {score, severity, description} from NVD, or {} on failure."""
+    try:
+        r = requests.get(_NVD_URL, params={"cveId": cve_id}, timeout=8)
+        r.raise_for_status()
+        vuln_list = r.json().get("vulnerabilities", [])
+        if not vuln_list:
+            return {}
+        cve = vuln_list[0]["cve"]
+        metrics = cve.get("metrics", {})
+        score, severity = None, None
+        for key in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
+            if key in metrics:
+                m        = metrics[key][0]
+                cvss     = m.get("cvssData", {})
+                score    = cvss.get("baseScore")
+                severity = (m.get("baseSeverity") or cvss.get("baseSeverity") or "").upper()
+                break
+        desc = next(
+            (d["value"] for d in cve.get("descriptions", []) if d.get("lang") == "en"),
+            ""
+        )
+        return {"score": score, "severity": severity, "description": desc}
+    except Exception:
+        return {}
+
+
+# ── Export ────────────────────────────────────────────────────────────────────
+
+_EXPORT_FIELDS = ["ip", "port", "category", "org", "product", "version", "city", "hostnames"]
+
+def _export_rows(results: dict[str, list[dict]]) -> list[dict]:
+    rows = []
+    for label, matches in results.items():
+        for r in matches:
+            rows.append({
+                "ip":        r.get("ip_str", ""),
+                "port":      r.get("port", ""),
+                "category":  label,
+                "org":       r.get("org", ""),
+                "product":   r.get("product", ""),
+                "version":   r.get("version", ""),
+                "city":      (r.get("location") or {}).get("city", ""),
+                "hostnames": ", ".join(r.get("hostnames", [])[:3]),
+            })
+    return rows
+
+
+def _save_csv(session: Session, results: dict[str, list[dict]]) -> Path:
+    fname = datetime.now().strftime("shodan_%Y%m%d_%H%M%S.csv")
+    path  = Path(fname)
+    rows  = _export_rows(results)
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=_EXPORT_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
+def _save_json(session: Session, results: dict[str, list[dict]]) -> Path:
+    fname = datetime.now().strftime("shodan_%Y%m%d_%H%M%S.json")
+    path  = Path(fname)
+    payload = {
+        "generated":  datetime.now().isoformat(),
+        "location":   session.display,
+        "radius_mi":  session.radius_mi,
+        "radius_km":  session.radius_km,
+        "lat":        session.lat,
+        "lon":        session.lon,
+        "results":    {label: matches for label, matches in results.items()},
+    }
+    path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    return path
+
+
+def _save_txt(session: Session, counts: dict[str, int],
+              results: dict[str, list[dict]]) -> Path:
+    fname = datetime.now().strftime("shodan_%Y%m%d_%H%M%S.txt")
+    path  = Path(fname)
+    ts    = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    lines = [
+        "SHODAN OSINT REPORT",
+        "=" * 60,
+        f"Generated : {ts}",
+        f"Location  : {session.display}",
+        f"Radius    : {session.radius_mi} mi / {session.radius_km} km",
+        f"Coords    : {session.lat}, {session.lon}",
+        "",
+        "SUMMARY",
+        "-" * 40,
+    ]
+    for label, matches in results.items():
+        lines.append(f"  {label:<30} total={counts.get(label,0):>6,}  fetched={len(matches):>4}")
+    lines += ["", "RESULTS", "-" * 40]
+    for label, matches in results.items():
+        if not matches:
+            continue
+        lines += [f"\n[{label}]"]
+        col = f"{'IP:Port':<22} {'Org':<28} {'Product':<20} {'Version':<14} {'City':<16} Hostnames"
+        lines += [col, "-" * len(col)]
+        for r in matches:
+            lines.append(
+                f"{r['ip_str']+':'+str(r['port']):<22} "
+                f"{(r.get('org') or ''):<28} "
+                f"{(r.get('product') or ''):<20} "
+                f"{(r.get('version') or ''):<14} "
+                f"{((r.get('location') or {}).get('city') or ''):<16} "
+                f"{', '.join(r.get('hostnames',[])[:2])}"
+            )
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def _ascii(s: str, maxlen: int = 0) -> str:
+    """Strip non-latin-1 chars so fpdf2 doesn't choke, optionally truncate."""
+    out = s.encode("latin-1", errors="replace").decode("latin-1")
+    return out[:maxlen] if maxlen else out
+
+
+def _save_pdf(session: Session, counts: dict[str, int],
+              results: dict[str, list[dict]]) -> Path | None:
+    if not _PDF_AVAILABLE:
+        return None
+    fname = datetime.now().strftime("shodan_%Y%m%d_%H%M%S.pdf")
+    path  = Path(fname)
+    ts    = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=12)
+    pdf.add_page()
+
+    # ── Title ──
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, "Shodan OSINT Report")
+    pdf.ln(12)
+
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(0, 6, _ascii(f"Generated: {ts}    Location: {session.display}"))
+    pdf.ln(7)
+    pdf.cell(0, 6, _ascii(
+        f"Radius: {session.radius_mi} mi / {session.radius_km} km    "
+        f"Coords: {session.lat}, {session.lon}"
+    ))
+    pdf.ln(10)
+
+    # ── Summary ──
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Summary")
+    pdf.ln(9)
+    pdf.set_font("Helvetica", "", 9)
+    for label, matches in results.items():
+        pdf.cell(0, 5, _ascii(
+            f"  {label}  -  total: {counts.get(label, 0):,}  /  fetched: {len(matches)}"
+        ))
+        pdf.ln(6)
+    pdf.ln(4)
+
+    # ── Results tables ──
+    col_w   = [40, 44, 30, 20, 26, 30]
+    headers = ["IP:Port", "Org", "Product", "Version", "City", "Hostnames"]
+
+    for label, matches in results.items():
+        if not matches:
+            continue
+
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(0, 8, _ascii(label))
+        pdf.ln(9)
+
+        # header row
+        pdf.set_font("Helvetica", "B", 8)
+        for w, h in zip(col_w, headers):
+            pdf.cell(w, 6, h, border=1)
+        pdf.ln()
+
+        # data rows
+        pdf.set_font("Helvetica", "", 8)
+        for r in matches:
+            vals = [
+                _ascii(f"{r['ip_str']}:{r['port']}", 24),
+                _ascii(r.get("org") or "", 32),
+                _ascii(r.get("product") or "", 22),
+                _ascii(r.get("version") or "", 14),
+                _ascii((r.get("location") or {}).get("city") or "", 20),
+                _ascii(", ".join(r.get("hostnames", [])[:2]), 28),
+            ]
+            for w, v in zip(col_w, vals):
+                pdf.cell(w, 5, v, border=1)
+            pdf.ln()
+        pdf.ln(4)
+
+    pdf.output(str(path))
+    return path
+
+
+def export_menu(session: Session, counts: dict[str, int],
+                results: dict[str, list[dict]]) -> None:
+    """Interactive export format picker."""
+    menu = Table(box=box.SIMPLE, show_header=False, pad_edge=False)
+    menu.add_column(style=C["blue"], width=4)
+    menu.add_column(style=C["text"])
+    menu.add_row("1", "Markdown  (.md)   — great for GitHub / Obsidian")
+    menu.add_row("2", "CSV       (.csv)  — Excel, Google Sheets, pandas")
+    menu.add_row("3", "JSON      (.json) — raw data, APIs, scripting")
+    menu.add_row("4", "Plain TXT (.txt)  — universal, grep-friendly")
+    if _PDF_AVAILABLE:
+        menu.add_row("5", "PDF       (.pdf)  — reports, sharing")
+    else:
+        menu.add_row("5", f"[{C['overlay0']}]PDF       (.pdf)  — install fpdf2 to enable[/]")
+    menu.add_row("b", "Back")
+    console.print(Panel(menu, title=f"[{C['mauve']}]Export Format[/]",
+                        border_style=C["surface1"], expand=False))
+
+    choices = ["1", "2", "3", "4", "5", "b"]
+    sel = CIPrompt.ask(f"[{C['blue']}]Format[/]", choices=choices, default="b")
+    if sel == "b":
+        return
+
+    path: Path | None = None
+    if sel == "1":
+        save_markdown(session, counts, results)
+        return
+    elif sel == "2":
+        path = _save_csv(session, results)
+    elif sel == "3":
+        path = _save_json(session, results)
+    elif sel == "4":
+        path = _save_txt(session, counts, results)
+    elif sel == "5":
+        if not _PDF_AVAILABLE:
+            console.print(f"[{C['yellow']}]fpdf2 not installed. Run: pip install fpdf2[/]")
+            return
+        path = _save_pdf(session, counts, results)
+
+    if path:
+        console.print(Panel(f"[{C['green']}]{path.resolve()}[/]",
+                            title=f"[{C['teal']}]Saved[/]",
+                            border_style=C["surface1"], expand=False))
+
+
 # ── Host deep-dive ────────────────────────────────────────────────────────────
 
 def host_lookup(api: shodan.Shodan, ip: str | None = None) -> None:
@@ -661,12 +954,45 @@ def host_lookup(api: shodan.Shodan, ip: str | None = None) -> None:
         vulns = sorted(host.get("vulns", []))
         if vulns:
             vt = Table(box=box.SIMPLE, show_header=False, pad_edge=False)
-            vt.add_column(style=f"bold {C['red']}")
+            vt.add_column(style=f"bold {C['red']}", no_wrap=True)    # CVE ID
+            vt.add_column(style=C["text"],          no_wrap=True)    # score
+            vt.add_column(style=C["text"],          no_wrap=True)    # severity
+            vt.add_column(style=C["subtext0"],      max_width=48)    # description
             for v in vulns:
-                vt.add_row(v)
-            panels.append(Panel(vt, title=f"[{C['red']}]CVEs[/]", border_style=C["surface1"]))
+                vt.add_row(v, "…", "fetching", "")
+            panels.append(Panel(vt, title=f"[{C['red']}]CVEs  (enriching…)[/]",
+                                border_style=C["surface1"]))
 
         console.print(Columns(panels, equal=False, expand=False))
+
+        # Enrich CVEs from NVD after the basic panels are shown
+        if vulns:
+            console.print(Rule(f"[bold {C['red']}]CVE Details[/]", style=C["surface1"]))
+            et = Table(box=box.ROUNDED, border_style=C["surface1"],
+                       header_style=f"bold {C['mauve']}")
+            et.add_column("CVE",         style=f"bold {C['red']}",  no_wrap=True)
+            et.add_column("Score",       style=C["text"],            no_wrap=True, justify="right")
+            et.add_column("Severity",    no_wrap=True)
+            et.add_column("Description", style=C["subtext0"],        max_width=60)
+            with Progress(SpinnerColumn(style=C["red"]),
+                          TextColumn(f"[{C['subtext0']}]fetching CVE details from NVD…"),
+                          console=console, transient=True) as prog:
+                prog.add_task("", total=None)
+                details: list[tuple] = []
+                for i, cve_id in enumerate(vulns):
+                    if i > 0:
+                        time.sleep(0.7)   # NVD rate-limit: ~5 req/30s without key
+                    d = fetch_cve_details(cve_id)
+                    score    = str(d.get("score", "—")) if d.get("score") is not None else "—"
+                    severity = d.get("severity") or "—"
+                    desc     = (d.get("description") or "—")[:200]
+                    details.append((cve_id, score, severity, desc))
+            for cve_id, score, severity, desc in details:
+                sev_color = _SEVERITY_COLORS.get(severity, C["text"])
+                et.add_row(cve_id, score,
+                           f"[{sev_color}]{severity}[/]",
+                           desc)
+            console.print(et)
 
         for svc in host.get("data", []):
             proto   = svc.get("transport", "tcp").upper()
@@ -700,8 +1026,8 @@ def dns_tools(api: shodan.Shodan) -> None:
         menu.add_row("b", "Back")
         console.print(Panel(menu, title=f"[{C['teal']}]DNS[/]",
                             border_style=C["surface1"], expand=False))
-        choice = Prompt.ask(f"[{C['blue']}]Select[/]",
-                            choices=["1", "2", "3", "b"], default="b")
+        choice = CIPrompt.ask(f"[{C['blue']}]Select[/]",
+                             choices=["1", "2", "3", "b"], default="b")
         if choice == "b":
             break
 
@@ -773,7 +1099,7 @@ def save_markdown(session: Session, counts: dict[str, int],
         f"**Location:** {session.display}  ",
         f"**Radius:** {session.radius_mi} mi / {session.radius_km} km  ",
         f"**Coordinates:** {session.lat}, {session.lon}  ",
-        f"**Tool:** shodan-access-script (lifetime tier)  ",
+        f"**Tool:** shodash — the TUI  ",
         "", "---", "", "## Summary", "",
         "| Category | Total | Fetched |",
         "|----------|-------|---------|",
@@ -801,7 +1127,7 @@ def save_markdown(session: Session, counts: dict[str, int],
         lines.append("")
 
     lines += ["---", "",
-              "*Generated by shodan-access-script — data publicly indexed by Shodan.*"]
+              "*Generated by shodash — the TUI. Data publicly indexed by Shodan.*"]
     path.write_text("\n".join(lines), encoding="utf-8")
     console.print(Panel(f"[{C['green']}]{path.resolve()}[/]",
                         title=f"[{C['teal']}]Saved[/]",
@@ -902,7 +1228,7 @@ def browse_category(api: shodan.Shodan, session: Session, cat_name: str) -> None
     )
 
     while True:
-        sel = Prompt.ask(f"[{C['blue']}]Toggle[/]", default="b").strip().lower()
+        sel = CIPrompt.ask(f"[{C['blue']}]Toggle[/]", default="b").strip().lower()
         if sel == "b":
             break
         if sel == "r":
@@ -1034,6 +1360,8 @@ def run_cart(api: shodan.Shodan, session: Session) -> None:
     console.print()
     selected = list(session.cart.keys())
     results  = fetch_results(api, session.geo, selected, limit)  # type: ignore[arg-type]
+    session.last_results = results
+    session.last_counts  = counts
     info = fetch_account_info(api)
     session.account_info = info
     show_status(info)
@@ -1052,7 +1380,7 @@ def run_cart(api: shodan.Shodan, session: Session) -> None:
         post = Table(box=box.SIMPLE, show_header=False, pad_edge=False)
         post.add_column(style=C["blue"], width=4)
         post.add_column(style=C["text"])
-        post.add_row("s", "Save results to .md file")
+        post.add_row("e", "Export results  (md / csv / json / txt / pdf)")
         post.add_row("h", "Deep-dive an IP from results")
         post.add_row("c", Text.from_markup(
             f"Scan these IPs  [{C['overlay1']}]({len(all_result_ips)} found, {sc_rem} scan credit(s) left)[/]"
@@ -1062,10 +1390,10 @@ def run_cart(api: shodan.Shodan, session: Session) -> None:
         console.print(Panel(post, title=f"[{C['mauve']}]What next?[/]",
                             border_style=C["surface1"], expand=False))
 
-        choice = Prompt.ask(f"[{C['blue']}]Select[/]",
-                            choices=["s", "h", "c", "x", "k"], default="k")
-        if choice == "s":
-            save_markdown(session, counts, results)
+        choice = CIPrompt.ask(f"[{C['blue']}]Select[/]",
+                             choices=["e", "h", "c", "x", "k"], default="k")
+        if choice == "e":
+            export_menu(session, counts, results)
         elif choice == "h":
             if all_result_ips:
                 ip_tbl = Table(box=box.SIMPLE, show_header=False, pad_edge=False)
@@ -1116,8 +1444,8 @@ def filter_library_menu(api: shodan.Shodan, session: Session) -> None:
             f"[bold {C['red']}]x[/] = clear cart  "
             f"[bold {C['red']}]b[/] = back[/]"
         )
-        sel = Prompt.ask(f"[{C['blue']}]Select[/]",
-                         choices=valid_nums + actions, default="b")
+        sel = CIPrompt.ask(f"[{C['blue']}]Select[/]",
+                          choices=valid_nums + actions, default="b")
 
         if sel == "b":
             break
@@ -1325,8 +1653,8 @@ def monitor_dashboard(api: shodan.Shodan, session: Session) -> None:
         choices = ["a", "c", "r", "b"]
         if alerts:
             choices += ["d", "v"]
-        sel = Prompt.ask(f"[{C['blue']}]Select[/]", choices=choices,
-                         show_choices=False, default="b").strip().lower()
+        sel = CIPrompt.ask(f"[{C['blue']}]Select[/]", choices=choices,
+                          show_choices=False, default="b").strip().lower()
 
         if sel == "b":
             break
@@ -1352,7 +1680,7 @@ def monitor_dashboard(api: shodan.Shodan, session: Session) -> None:
 
         elif sel == "d" and alerts:
             nums = [str(i) for i in range(1, len(alerts) + 1)]
-            n    = Prompt.ask(f"[{C['blue']}]Delete #[/]", choices=nums)
+            n    = CIPrompt.ask(f"[{C['blue']}]Delete #[/]", choices=nums)
             alert = alerts[int(n) - 1]
             if Confirm.ask(f"[{C['red']}]Delete monitor '{alert.get('name', '?')}'?[/]"):
                 try:
@@ -1365,7 +1693,7 @@ def monitor_dashboard(api: shodan.Shodan, session: Session) -> None:
 
         elif sel == "v" and alerts:
             nums = [str(i) for i in range(1, len(alerts) + 1)]
-            n    = Prompt.ask(f"[{C['blue']}]View #[/]", choices=nums)
+            n    = CIPrompt.ask(f"[{C['blue']}]View #[/]", choices=nums)
             alert = alerts[int(n) - 1]
             try:
                 details = api.alerts(aid=alert["id"])
@@ -1492,6 +1820,8 @@ def render_dashboard(session: Session) -> None:
         row1.append(btn("X", "Clear Cart", C["red"]))
 
     row2 = [btn("Q", "Quit", C["overlay0"])]
+    if session.last_results:
+        row2.insert(0, btn("E", "Export Last Results", C["peach"]))
 
     actions.add_row("   ".join(row1))
     actions.add_row("   ".join(row2))
@@ -1507,8 +1837,10 @@ def dashboard_loop(api: shodan.Shodan, session: Session) -> None:
         choices = ["b", "l", "m", "h", "d", "q"]
         if session.cart_count() > 0:
             choices.extend(["r", "x"])
+        if session.last_results:
+            choices.append("e")
 
-        sel = Prompt.ask(f"[{C['blue']}]Action[/]", choices=choices, show_choices=False).strip().lower()
+        sel = CIPrompt.ask(f"[{C['blue']}]Action[/]", choices=choices, show_choices=False).strip().lower()
 
         if sel == "q":
             break
@@ -1532,6 +1864,8 @@ def dashboard_loop(api: shodan.Shodan, session: Session) -> None:
         elif sel == "x" and "x" in choices:
             if Confirm.ask(f"[{C['red']}]Clear all {session.cart_count()} items?[/]"):
                 session.clear_cart()
+        elif sel == "e" and session.last_results:
+            export_menu(session, session.last_counts, session.last_results)
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
@@ -1577,6 +1911,23 @@ def main() -> None:
     session.account_info = account_info
     session.api_key      = key
 
+    # ── Stage 4: restore last location if saved ───────────────────────────────
+    cfg = _load_config()
+    if cfg and cfg.get("lat") and cfg.get("display"):
+        console.clear()
+        banner()
+        console.print(Panel(
+            f"[{C['subtext0']}]Last session:[/] [{C['teal']}]{cfg['display']}[/]  "
+            f"[{C['overlay1']}]•[/]  [{C['blue']}]{cfg.get('radius_mi')} mi / {cfg.get('radius_km')} km[/]",
+            title=f"[{C['mauve']}]Saved Location[/]",
+            border_style=C["surface1"], expand=False,
+        ))
+        if Confirm.ask(f"[{C['blue']}]Restore this location?[/]", default=True):
+            # Assign fields directly to avoid triggering _save_config redundantly
+            session.lat, session.lon, session.display = cfg["lat"], cfg["lon"], cfg["display"]
+            session.radius_mi, session.radius_km      = cfg["radius_mi"], cfg["radius_km"]
+            session.geo = f"geo:{cfg['lat']},{cfg['lon']},{cfg['radius_km']}"
+
     # Enter dashboard loop
     dashboard_loop(api, session)
 
@@ -1584,4 +1935,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        console.print(f"\n[{C['overlay1']}]bye.[/]\n")
+        sys.exit(0)
