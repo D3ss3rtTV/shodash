@@ -1,0 +1,106 @@
+ip,port,category,org,product,version,city,hostnames
+172.103.38.51,23,Telnet (23),Clearnetworx,,,Montrose,
+170.10.72.14,23,Telnet (23),Region 10,,,Montrose,14-72-10-170.static.in-addr.arpa.elevatefiber.com
+50.30.19.33,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+206.123.219.9,22,SSH (22),Clearnetworx,,,Montrose,
+208.103.177.1,22,SSH (22),Clearnetworx,,,Montrose,
+98.127.17.122,22,SSH (22),Charter Communications LLC,OpenSSH,6.6.1p1 Debian 4~bpo70+1,Montrose,syn-098-127-017-122.res.spectrum.com
+209.206.82.78,22,SSH (22),ELEVATE,OpenSSH,7.4p1 Debian 10+deb9u7,Montrose,78-82-206-209.static.in-addr.arpa.elevatefiber.com
+172.103.36.119,22,SSH (22),Clearnetworx,OpenSSH,8.2p1 Ubuntu 4ubuntu0.13,Montrose,
+172.103.37.241,22,SSH (22),Clearnetworx,,,Montrose,
+50.30.19.105,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+170.10.84.196,22,SSH (22),ELEVATE,OpenSSH,9.6,Montrose,196-84-10-170.static.in-addr.arpa.elevatefiber.com
+135.129.109.188,22,SSH (22),Clearnetworx,OpenSSH,8.4p1 Debian 5+deb11u5,Montrose,
+69.146.55.141,22,SSH (22),Charter Communications LLC,Dropbear sshd,0.52,Montrose,syn-069-146-055-141.res.spectrum.com
+209.206.78.54,22,SSH (22),ELEVATE,Dropbear sshd,2019.78,Montrose,54-78-206-209.static.in-addr.arpa.elevatefiber.com
+216.189.52.249,22,SSH (22),High Speed Web/Genesis 2 Networks,OpenSSH,8.9p1 Ubuntu 3ubuntu0.14,Montrose,
+50.30.19.65,22,SSH (22),Clearnetworx,,,Montrose,
+98.127.17.227,22,SSH (22),Charter Communications LLC,Dropbear sshd,2018.76,Montrose,syn-098-127-017-227.res.spectrum.com
+206.123.208.145,22,SSH (22),Clearnetworx,,,Montrose,
+216.189.52.251,22,SSH (22),High Speed Web/Genesis 2 Networks,OpenSSH,8.9p1 Ubuntu 3ubuntu0.14,Montrose,
+170.10.64.102,22,SSH (22),ELEVATE,OpenSSH,7.6p1 Ubuntu 4ubuntu0.5,Montrose,mail.elevatefiber.net
+135.129.109.11,22,SSH (22),Clearnetworx,,,Montrose,
+206.123.208.153,22,SSH (22),Clearnetworx,,,Montrose,
+209.203.155.1,22,SSH (22),Nucla Naturita Telephone Co,Cisco SSH,2.0,Montrose,
+216.237.240.33,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,gw2.mvcable.net
+69.144.74.91,22,SSH (22),Charter Communications LLC,,,Montrose,syn-069-144-074-091.biz.spectrum.com
+50.30.19.113,22,SSH (22),Clearnetworx,,,Montrose,
+98.127.17.228,22,SSH (22),Charter Communications LLC,Dropbear sshd,2018.76,Montrose,syn-098-127-017-228.res.spectrum.com
+172.103.36.110,22,SSH (22),Clearnetworx,OpenSSH,8.9p1 Ubuntu 3ubuntu0.14,Montrose,
+170.10.65.66,22,SSH (22),Region 10,,,Montrose,66-65-10-170.static.in-addr.arpa.elevatefiber.com
+216.189.52.252,22,SSH (22),High Speed Web/Genesis 2 Networks,OpenSSH,8.9p1 Ubuntu 3ubuntu0.14,Montrose,
+172.103.36.38,22,SSH (22),Clearnetworx,OpenSSH,8.7,Montrose,
+172.103.38.51,22,SSH (22),Clearnetworx,,,Montrose,
+209.206.81.92,22,SSH (22),ELEVATE,OpenSSH,9.6p1 Ubuntu 3ubuntu13.15,Montrose,92-81-206-209.static.static.in-addr.arpa.elevatefiber.com
+172.103.36.217,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+208.103.177.17,22,SSH (22),Clearnetworx,,,Montrose,
+172.103.36.99,22,SSH (22),Clearnetworx,OpenSSH,8.9p1 Ubuntu 3ubuntu0.14,Montrose,
+209.206.65.34,22,SSH (22),ELEVATE,,,Montrose,34-65-206-209.static.in-addr.arpa.elevatefiber.com
+172.103.37.33,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+205.220.219.65,22,SSH (22),Clearnetworx,,,Montrose,
+208.103.177.129,22,SSH (22),Clearnetworx,,,Montrose,
+209.206.82.165,22,SSH (22),ELEVATE,,,Montrose,165-82-206-209.static.in-addr.arpa.elevatefiber.com
+172.103.38.9,22,SSH (22),Clearnetworx,,,Montrose,
+205.220.219.140,22,SSH (22),Clearnetworx,OpenSSH,5.9,Montrose,
+172.103.36.15,22,SSH (22),Clearnetworx,OpenSSH,9.6p1 Ubuntu 3ubuntu13.15,Montrose,
+206.123.208.161,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+206.123.208.177,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+50.30.19.121,22,SSH (22),Clearnetworx,,,Montrose,
+172.103.38.57,22,SSH (22),Clearnetworx,,,Montrose,
+172.103.37.37,22,SSH (22),Clearnetworx,,,Montrose,te-0-0-0-0.cnet-rtr-tride.clearnetworx.net
+50.30.19.97,22,SSH (22),Clearnetworx,,,Montrose,
+172.103.36.41,22,SSH (22),Clearnetworx,OpenSSH,8.2p1 Ubuntu 4ubuntu0.13,Montrose,
+172.103.38.41,22,SSH (22),Clearnetworx,,,Montrose,
+135.129.109.38,22,SSH (22),Clearnetworx,Dropbear sshd,2019.78,Montrose,
+206.123.219.248,22,SSH (22),Clearnetworx,OpenSSH,8.2p1 Ubuntu 4ubuntu0.13,Montrose,
+50.30.19.1,22,SSH (22),Clearnetworx,,,Montrose,
+98.127.17.216,22,SSH (22),Charter Communications LLC,Dropbear sshd,2018.76,Montrose,syn-098-127-017-216.res.spectrum.com
+172.103.36.48,22,SSH (22),Clearnetworx,OpenSSH,8.7,Montrose,
+206.123.208.214,22,SSH (22),Clearnetworx,OpenSSH,8.4p1 Debian 5+deb11u5,Montrose,
+172.103.38.1,22,SSH (22),Clearnetworx,,,Montrose,
+206.123.219.26,22,SSH (22),Clearnetworx,OpenSSH,8.9p1 Ubuntu 3ubuntu0.13,Montrose,
+206.123.208.129,22,SSH (22),Clearnetworx,,,Montrose,
+69.146.53.189,22,SSH (22),Charter Communications LLC,OpenSSH,9.6p1 Ubuntu 3ubuntu13.12,Montrose,syn-069-146-053-189.res.spectrum.com
+172.103.36.209,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+172.103.36.75,22,SSH (22),Clearnetworx,OpenSSH,8.9p1 Ubuntu 3ubuntu0.13,Montrose,unms.clearnetworx.com
+172.103.37.153,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+208.103.177.9,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+216.246.211.152,22,SSH (22),Clearnetworx,,,Montrose,be10-658.cnet-rtr-mtj.clearnetworx.net
+206.123.208.233,22,SSH (22),Clearnetworx,,,Montrose,
+172.103.37.97,22,SSH (22),Clearnetworx,,,Montrose,
+50.30.19.25,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+205.220.219.25,22,SSH (22),Clearnetworx,,,Montrose,
+172.103.36.16,22,SSH (22),Clearnetworx,OpenSSH,8.9p1 Ubuntu 3ubuntu0.13,Montrose,
+170.10.84.38,22,SSH (22),Ross Reels,,,Montrose,38-84-10-170.static.in-addr.arpa.elevatefiber.com
+135.129.109.1,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+50.30.19.17,22,SSH (22),Clearnetworx,,,Montrose,
+205.220.219.145,22,SSH (22),Clearnetworx,,,Montrose,
+206.123.208.225,22,SSH (22),Clearnetworx,,,Montrose,
+198.179.62.12,22,SSH (22),Elite Broadband LLC,Dropbear sshd,2019.78,Montrose,
+172.103.37.129,22,SSH (22),Clearnetworx,,,Montrose,
+172.103.37.25,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+50.30.19.34,22,SSH (22),Clearnetworx,,,Montrose,
+205.220.219.97,22,SSH (22),Clearnetworx,,,Montrose,
+205.220.219.193,22,SSH (22),Clearnetworx,,,Montrose,
+172.103.36.40,22,SSH (22),Clearnetworx,OpenSSH,8.9p1 Ubuntu 3ubuntu0.13,Montrose,cnethawk.clearnetworx.com
+98.127.17.214,22,SSH (22),Charter Communications LLC,Dropbear sshd,2018.76,Montrose,syn-098-127-017-214.res.spectrum.com
+50.30.19.9,22,SSH (22),Clearnetworx,,,Montrose,
+170.10.72.14,22,SSH (22),Region 10,,,Montrose,14-72-10-170.static.in-addr.arpa.elevatefiber.com
+98.127.17.215,22,SSH (22),Charter Communications LLC,Dropbear sshd,2018.76,Montrose,syn-098-127-017-215.res.spectrum.com
+206.123.208.217,22,SSH (22),Clearnetworx,,,Montrose,
+205.220.219.169,22,SSH (22),Clearnetworx,,,Montrose,
+206.123.219.25,22,SSH (22),Clearnetworx,,,Montrose,
+172.103.37.41,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+205.220.219.170,22,SSH (22),Clearnetworx,,,Montrose,
+206.123.208.23,22,SSH (22),Clearnetworx,OpenSSH,8.9p1 Ubuntu 3ubuntu0.13,Montrose,
+206.123.208.64,22,SSH (22),Clearnetworx,,,Montrose,
+172.103.37.65,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+206.123.208.169,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+206.123.219.57,22,SSH (22),Clearnetworx,,,Montrose,
+205.220.219.41,22,SSH (22),Clearnetworx,,,Montrose,
+205.220.219.161,22,SSH (22),Clearnetworx,Cisco SSH,2.0,Montrose,
+170.10.72.14,3389,RDP (3389),Region 10,,,Montrose,14-72-10-170.static.in-addr.arpa.elevatefiber.com
+135.129.109.73,3389,RDP (3389),Clearnetworx,Remote Desktop Protocol,,Montrose,
+69.146.55.227,3389,RDP (3389),Charter Communications LLC,Remote Desktop Protocol,,Montrose,syn-069-146-055-227.res.spectrum.com
+172.103.38.50,3389,RDP (3389),Clearnetworx,Remote Desktop Protocol,,Montrose,
+209.206.81.166,3389,RDP (3389),ELEVATE,Remote Desktop Protocol,,Montrose,166-81-206-209.static.static.in-addr.arpa.elevatefiber.com
